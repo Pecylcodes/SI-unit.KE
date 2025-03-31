@@ -1,0 +1,78 @@
+// Installation and Setup Instructions for SI-unit.KE dApp
+
+// 1. Create a new React application
+// Run the following commands in your terminal:
+// npx create-react-app si-unit-ke-dapp
+// cd si-unit-ke-dapp
+
+// 2. Install required dependencies
+// npm install @hashgraph/sdk hashconnect
+
+// 3. Create the folder structure
+// src/
+// ├── components/
+// │   ├── Navbar.js
+// │   ├── InvestmentBaskets.js
+// │   ├── AIAdvisor.js
+// │   └── Portfolio.js
+// ├── App.js
+// ├── App.css
+// └── index.js
+
+// 4. Copy the code from the provided artifacts into their respective files:
+// - App.js content from si-unit-ke-dapp artifact
+// - Component files from si-unit-ke-components artifact
+// - App.css content from si-unit-ke-styles artifact
+
+// 5. Make sure to import React in each component file
+
+// 6. Update your package.json to include Hedera Testnet configuration:
+/*
+{
+  "name": "si-unit-ke-dapp",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@hashgraph/sdk": "^2.30.0",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "hashconnect": "^0.2.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
+*/
+
+// 7. Run the application
+// npm start
+
+// Note: Hedera account ID and private key are already configured in the App.js file
+// Account ID: 0.0.5782340
+// Private Key: 302e020100300506032b6570042204206d1bff0fdf23418091e14310762f11bb9b1a225f92d271b6578c4146f2b85433
