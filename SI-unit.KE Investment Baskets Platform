@@ -1,0 +1,129 @@
+// src/App.js
+import React, { useState, useEffect } from 'react';
+import { HashConnect } from 'hashconnect';
+import { Client, AccountId, PrivateKey, TransferTransaction, Hbar } from '@hashgraph/sdk';
+import InvestmentBaskets from './components/InvestmentBaskets';
+import AIAdvisor from './components/AIAdvisor';
+import Portfolio from './components/Portfolio';
+import Navbar from './components/Navbar';
+import './App.css';
+
+function App() {
+  const [activeTab, setActiveTab] = useState('explore');
+  const [client, setClient] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [accountId, setAccountId] = useState('');
+  const [balance, setBalance] = useState(0);
+  const [loadingConnection, setLoadingConnection] = useState(false);
+  const [message, setMessage] = useState('');
+
+  // Initialize Hedera client
+  useEffect(() => {
+    const initClient = async () => {
+      try {
+        // For testnet connection
+        const myAccountId = AccountId.fromString("0.0.5782340");
+        const myPrivateKey = PrivateKey.fromString("302e020100300506032b6570042204206d1bff0fdf23418091e14310762f11bb9b1a225f92d271b6578c4146f2b85433");
+        
+        const client = Client.forTestnet();
+        client.setOperator(myAccountId, myPrivateKey);
+        
+        setClient(client);
+        setAccountId(myAccountId.toString());
+        setIsConnected(true);
+        
+        // Get account balance
+        const accountBalance = await client.getAccountBalance(myAccountId);
+        setBalance(accountBalance.hbars.toTinybars().toNumber() / 100000000);
+        
+        setMessage("Successfully connected to Hedera Testnet");
+      } catch (error) {
+        console.error("Error initializing Hedera client:", error);
+        setMessage(`Connection error: ${error.message}`);
+      }
+    };
+
+    initClient();
+  }, []);
+
+  // Function to transfer HBAR
+  const transferHBAR = async (recipientId, amount) => {
+    try {
+      setLoadingConnection(true);
+      
+      // Create the transfer transaction
+      const transaction = await new TransferTransaction()
+        .addHbarTransfer(AccountId.fromString(accountId), Hbar.fromTinybars(-amount * 100000000))
+        .addHbarTransfer(AccountId.fromString(recipientId), Hbar.fromTinybars(amount * 100000000))
+        .execute(client);
+      
+      // Get the receipt
+      const receipt = await transaction.getReceipt(client);
+      
+      // Update balance
+      const accountBalance = await client.getAccountBalance(AccountId.fromString(accountId));
+      setBalance(accountBalance.hbars.toTinybars().toNumber() / 100000000);
+      
+      setMessage(`Transfer successful with status: ${receipt.status.toString()}`);
+      setLoadingConnection(false);
+      
+      return true;
+    } catch (error) {
+      console.error("Error during HBAR transfer:", error);
+      setMessage(`Transfer failed: ${error.message}`);
+      setLoadingConnection(false);
+      
+      return false;
+    }
+  };
+
+  return (
+    <div className="app-container">
+      <Navbar 
+        isConnected={isConnected} 
+        accountId={accountId} 
+        balance={balance}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
+      
+      <div className="connection-status">
+        {loadingConnection ? (
+          <p>Processing transaction...</p>
+        ) : (
+          message && <p className={isConnected ? "success-message" : "error-message"}>{message}</p>
+        )}
+      </div>
+      
+      <main className="main-content">
+        {activeTab === 'explore' && (
+          <InvestmentBaskets 
+            client={client} 
+            accountId={accountId} 
+            transferHBAR={transferHBAR}
+          />
+        )}
+        
+        {activeTab === 'advisor' && (
+          <AIAdvisor 
+            accountId={accountId}
+          />
+        )}
+        
+        {activeTab === 'portfolio' && (
+          <Portfolio 
+            accountId={accountId} 
+            balance={balance}
+          />
+        )}
+      </main>
+      
+      <footer className="app-footer">
+        <p>© 2025 SI-unit.KE - AI-Powered Investment Baskets Platform on Hedera</p>
+        <p>Powered by Hedera Hashgraph</p>
+      </footer>
+    </div>
+  );
+}
+
+export default App;
