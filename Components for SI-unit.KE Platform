@@ -1,0 +1,567 @@
+// src/components/Navbar.js
+import React from 'react';
+
+function Navbar({ isConnected, accountId, balance, activeTab, setActiveTab }) {
+  return (
+    <nav className="navbar">
+      <div className="navbar-brand">
+        <h1>SI-unit.KE</h1>
+        <p>Investment Baskets Platform</p>
+      </div>
+      
+      <div className="nav-tabs">
+        <button 
+          className={activeTab === 'explore' ? 'active' : ''}
+          onClick={() => setActiveTab('explore')}
+        >
+          Explore Baskets
+        </button>
+        <button 
+          className={activeTab === 'advisor' ? 'active' : ''}
+          onClick={() => setActiveTab('advisor')}
+        >
+          AI Advisor
+        </button>
+        <button 
+          className={activeTab === 'portfolio' ? 'active' : ''}
+          onClick={() => setActiveTab('portfolio')}
+        >
+          My Portfolio
+        </button>
+      </div>
+      
+      <div className="wallet-info">
+        {isConnected ? (
+          <>
+            <div className="account-info">
+              <span className="connection-indicator connected"></span>
+              <p>Account: {accountId}</p>
+              <p>Balance: {balance.toFixed(4)} HBAR</p>
+            </div>
+          </>
+        ) : (
+          <div className="account-info">
+            <span className="connection-indicator disconnected"></span>
+            <p>Not connected</p>
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+}
+
+export default Navbar;
+
+// src/components/InvestmentBaskets.js
+import React, { useState } from 'react';
+import { TokenId, TokenAssociateTransaction, TokenCreateTransaction, Hbar, TokenSupplyType, TokenType } from '@hashgraph/sdk';
+
+function InvestmentBaskets({ client, accountId, transferHBAR }) {
+  const [selectedBasket, setSelectedBasket] = useState(null);
+  const [investmentAmount, setInvestmentAmount] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const baskets = [
+    {
+      id: 'TECH-SI',
+      name: 'Technology Sector',
+      description: 'A basket of technology companies listed on the NSE',
+      performance: '+12.5%',
+      risk: 'Moderate',
+      companies: ['Safaricom', 'WPP ScanGroup', 'Longhorn Publishers'],
+      color: '#3498db'
+    },
+    {
+      id: 'AGRI-SI',
+      name: 'Agricultural Sector',
+      description: 'A basket of agricultural companies listed on the NSE',
+      performance: '+8.2%',
+      risk: 'Low-Moderate',
+      companies: ['Kakuzi', 'Sasini', 'Kapchorua Tea', 'Limuru Tea'],
+      color: '#27ae60'
+    },
+    {
+      id: 'BUILD-SI',
+      name: 'Construction & Real Estate',
+      description: 'A basket of construction and real estate companies listed on the NSE',
+      performance: '+5.7%',
+      risk: 'Moderate',
+      companies: ['Bamburi Cement', 'ARM Cement', 'Home Afrika'],
+      color: '#f39c12'
+    },
+    {
+      id: 'FIN-SI',
+      name: 'Financial Services',
+      description: 'A basket of banks and financial services companies listed on the NSE',
+      performance: '+9.3%',
+      risk: 'Moderate-High',
+      companies: ['Equity Group', 'KCB Group', 'NCBA Group', 'Co-operative Bank'],
+      color: '#8e44ad'
+    }
+  ];
+
+  const handleBasketSelect = (basket) => {
+    setSelectedBasket(basket);
+    setInvestmentAmount('');
+    setMessage('');
+  };
+
+  const handleInvest = async () => {
+    if (!selectedBasket || !investmentAmount || isNaN(investmentAmount) || investmentAmount <= 0) {
+      setMessage('Please enter a valid investment amount');
+      return;
+    }
+
+    setLoading(true);
+    setMessage('Processing your investment...');
+
+    // Simulate token purchase by transferring HBAR
+    // In a real implementation, this would create or transfer tokens
+    try {
+      // For demonstration, we'll just transfer to the platform account
+      const success = await transferHBAR(accountId, parseFloat(investmentAmount));
+      
+      if (success) {
+        setMessage(`Successfully invested ${investmentAmount} HBAR in ${selectedBasket.id}`);
+      } else {
+        setMessage('Investment failed. Please try again.');
+      }
+    } catch (error) {
+      console.error("Investment error:", error);
+      setMessage(`Investment failed: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // This function would be implemented in a full version to create the token baskets
+  const createTokenBasket = async (basketId, name, description) => {
+    try {
+      // Create a new token type
+      const transaction = await new TokenCreateTransaction()
+        .setTokenName(name)
+        .setTokenSymbol(basketId)
+        .setDecimals(2)
+        .setInitialSupply(10000)
+        .setTreasuryAccountId(accountId)
+        .setAdminKey(client.operatorPublicKey)
+        .setSupplyKey(client.operatorPublicKey)
+        .setTokenType(TokenType.FungibleCommon)
+        .setSupplyType(TokenSupplyType.Infinite)
+        .freezeWith(client);
+      
+      const signTx = await transaction.sign(client.operatorPrivateKey);
+      const txResponse = await signTx.execute(client);
+      const receipt = await txResponse.getReceipt(client);
+      
+      const tokenId = receipt.tokenId;
+      return tokenId.toString();
+    } catch (error) {
+      console.error("Error creating token:", error);
+      throw error;
+    }
+  };
+
+  return (
+    <div className="investment-baskets">
+      <h2>Investment Baskets</h2>
+      <div className="baskets-container">
+        <div className="baskets-list">
+          {baskets.map((basket) => (
+            <div 
+              key={basket.id}
+              className={`basket-card ${selectedBasket?.id === basket.id ? 'selected' : ''}`}
+              onClick={() => handleBasketSelect(basket)}
+              style={{ borderColor: basket.color }}
+            >
+              <div className="basket-header" style={{ backgroundColor: basket.color }}>
+                <h3>{basket.id}</h3>
+              </div>
+              <div className="basket-content">
+                <h4>{basket.name}</h4>
+                <p>{basket.description}</p>
+                <p>Performance (YTD): <span className="performance">{basket.performance}</span></p>
+                <p>Risk Level: {basket.risk}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {selectedBasket && (
+          <div className="basket-details">
+            <h3>{selectedBasket.name} ({selectedBasket.id})</h3>
+            <p>{selectedBasket.description}</p>
+            <div className="basket-stats">
+              <div>
+                <h4>Performance</h4>
+                <p className="performance">{selectedBasket.performance}</p>
+              </div>
+              <div>
+                <h4>Risk Level</h4>
+                <p>{selectedBasket.risk}</p>
+              </div>
+            </div>
+            
+            <div className="basket-companies">
+              <h4>Companies in this Basket</h4>
+              <ul>
+                {selectedBasket.companies.map((company, index) => (
+                  <li key={index}>{company}</li>
+                ))}
+              </ul>
+            </div>
+            
+            <div className="investment-form">
+              <h4>Invest in this Basket</h4>
+              <div className="form-group">
+                <label htmlFor="amount">Amount (HBAR):</label>
+                <input 
+                  type="number" 
+                  id="amount" 
+                  value={investmentAmount} 
+                  onChange={(e) => setInvestmentAmount(e.target.value)}
+                  min="0.1" 
+                  step="0.1"
+                  disabled={loading}
+                />
+              </div>
+              
+              <button 
+                className="invest-button"
+                onClick={handleInvest}
+                disabled={loading || !investmentAmount}
+                style={{ backgroundColor: selectedBasket.color }}
+              >
+                {loading ? 'Processing...' : 'Invest Now'}
+              </button>
+              
+              {message && <p className="investment-message">{message}</p>}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default InvestmentBaskets;
+
+// src/components/AIAdvisor.js
+import React, { useState, useEffect } from 'react';
+
+function AIAdvisor({ accountId }) {
+  const [query, setQuery] = useState('');
+  const [chatHistory, setChatHistory] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [riskProfile, setRiskProfile] = useState('moderate');
+  const [investmentGoal, setInvestmentGoal] = useState('growth');
+  const [investmentHorizon, setInvestmentHorizon] = useState('medium');
+
+  // Simulated AI responses
+  const aiResponses = {
+    welcome: "Hello! I'm your personal investment advisor. How can I help you today?",
+    
+    defaultResponses: [
+      "Based on your risk profile and the current market conditions, I would recommend considering the TECH-SI basket which has shown strong performance in recent months.",
+      "Given your investment horizon, diversifying between AGRI-SI and FIN-SI baskets could provide balanced exposure to growth sectors while managing volatility.",
+      "Current economic indicators suggest potential growth in the agricultural sector. The AGRI-SI basket might be worth considering for your portfolio.",
+      "Looking at historical performance, the FIN-SI basket has demonstrated resilience during market downturns while providing consistent returns.",
+      "Your portfolio could benefit from allocation to the BUILD-SI basket, especially with the ongoing infrastructure developments in Kenya."
+    ],
+    
+    specificResponses: {
+      "tech": "The technology sector in Kenya is showing promising growth, led by companies like Safaricom. The TECH-SI basket offers exposure to this sector with a moderate risk profile and has returned +12.5% year-to-date.",
+      "agriculture": "Kenya's agricultural sector remains a backbone of the economy. The AGRI-SI basket includes stable performers like Kakuzi and Sasini, offering a low-moderate risk profile with consistent returns of +8.2% year-to-date.",
+      "financial": "The Kenyan banking sector has shown resilience and growth. The FIN-SI basket includes top performers like Equity Group and KCB Group, offering a moderate-high risk profile with returns of +9.3% year-to-date.",
+      "construction": "With growing urbanization and infrastructure development, the BUILD-SI basket provides exposure to construction and real estate companies like Bamburi Cement, with returns of +5.7% year-to-date."
+    }
+  };
+
+  useEffect(() => {
+    // Add welcome message when component mounts
+    setChatHistory([
+      { sender: 'ai', message: aiResponses.welcome }
+    ]);
+  }, []);
+
+  const handleSendMessage = () => {
+    if (!query.trim()) return;
+    
+    // Add user message to chat
+    setChatHistory(prev => [...prev, { sender: 'user', message: query }]);
+    
+    // Simulate AI typing
+    setIsTyping(true);
+    
+    // Determine response based on query
+    setTimeout(() => {
+      let response = '';
+      const lowerQuery = query.toLowerCase();
+      
+      if (lowerQuery.includes('tech') || lowerQuery.includes('technology') || lowerQuery.includes('tech-si')) {
+        response = aiResponses.specificResponses.tech;
+      } else if (lowerQuery.includes('agri') || lowerQuery.includes('agriculture') || lowerQuery.includes('farm')) {
+        response = aiResponses.specificResponses.agriculture;
+      } else if (lowerQuery.includes('fin') || lowerQuery.includes('finance') || lowerQuery.includes('bank')) {
+        response = aiResponses.specificResponses.financial;
+      } else if (lowerQuery.includes('build') || lowerQuery.includes('construction') || lowerQuery.includes('real estate')) {
+        response = aiResponses.specificResponses.construction;
+      } else {
+        // Pick a random default response
+        const randomIndex = Math.floor(Math.random() * aiResponses.defaultResponses.length);
+        response = aiResponses.defaultResponses[randomIndex];
+      }
+      
+      // Add AI response to chat
+      setChatHistory(prev => [...prev, { sender: 'ai', message: response }]);
+      setIsTyping(false);
+      setQuery('');
+    }, 1500);
+  };
+
+  return (
+    <div className="ai-advisor">
+      <div className="advisor-container">
+        <div className="advisor-preferences">
+          <h3>Your Investment Profile</h3>
+          <div className="preference-item">
+            <label>Risk Tolerance:</label>
+            <select 
+              value={riskProfile} 
+              onChange={(e) => setRiskProfile(e.target.value)}
+            >
+              <option value="low">Low Risk</option>
+              <option value="moderate">Moderate Risk</option>
+              <option value="high">High Risk</option>
+            </select>
+          </div>
+          
+          <div className="preference-item">
+            <label>Investment Goal:</label>
+            <select 
+              value={investmentGoal} 
+              onChange={(e) => setInvestmentGoal(e.target.value)}
+            >
+              <option value="income">Regular Income</option>
+              <option value="growth">Capital Growth</option>
+              <option value="balanced">Balanced</option>
+            </select>
+          </div>
+          
+          <div className="preference-item">
+            <label>Investment Horizon:</label>
+            <select 
+              value={investmentHorizon} 
+              onChange={(e) => setInvestmentHorizon(e.target.value)}
+            >
+              <option value="short">Short-term (< 1 year)</option>
+              <option value="medium">Medium-term (1-5 years)</option>
+              <option value="long">Long-term (> 5 years)</option>
+            </select>
+          </div>
+        </div>
+        
+        <div className="chat-interface">
+          <div className="chat-history">
+            {chatHistory.map((chat, index) => (
+              <div key={index} className={`chat-message ${chat.sender}`}>
+                <div className="message-content">
+                  {chat.message}
+                </div>
+              </div>
+            ))}
+            
+            {isTyping && (
+              <div className="chat-message ai typing">
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="chat-input">
+            <input 
+              type="text" 
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="Ask about investment recommendations..."
+              disabled={isTyping}
+            />
+            <button 
+              onClick={handleSendMessage}
+              disabled={isTyping || !query.trim()}
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <div className="advisor-tips">
+        <h3>Investment Tips</h3>
+        <div className="tip-item">
+          <h4>Diversification</h4>
+          <p>Consider spreading your investments across different sectors to reduce risk.</p>
+        </div>
+        <div className="tip-item">
+          <h4>Market Trends</h4>
+          <p>The technology and financial sectors are showing strong growth potential in 2025.</p>
+        </div>
+        <div className="tip-item">
+          <h4>Start Small</h4>
+          <p>Begin with smaller investments to get comfortable with the platform and market dynamics.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default AIAdvisor;
+
+// src/components/Portfolio.js
+import React, { useState, useEffect } from 'react';
+
+function Portfolio({ accountId, balance }) {
+  // In a real implementation, this data would come from the blockchain
+  // This is simulated data for demonstration purposes
+  const [holdings, setHoldings] = useState([
+    {
+      basketId: 'TECH-SI',
+      name: 'Technology Sector',
+      amount: 2.5,
+      value: 27.5,
+      performance: '+12.5%',
+      color: '#3498db'
+    },
+    {
+      basketId: 'AGRI-SI',
+      name: 'Agricultural Sector',
+      amount: 1.8,
+      value: 15.3,
+      performance: '+8.2%',
+      color: '#27ae60'
+    }
+  ]);
+
+  const [totalValue, setTotalValue] = useState(0);
+  const [totalPerformance, setTotalPerformance] = useState('');
+
+  useEffect(() => {
+    // Calculate total value and weighted performance
+    const total = holdings.reduce((sum, holding) => sum + holding.value, 0);
+    setTotalValue(total);
+    
+    // Simple weighted average performance calculation
+    const weightedPerformance = holdings.reduce((sum, holding) => {
+      const perf = parseFloat(holding.performance.replace('%', '').replace('+', ''));
+      return sum + (perf * (holding.value / total));
+    }, 0);
+    
+    setTotalPerformance(`+${weightedPerformance.toFixed(2)}%`);
+  }, [holdings]);
+
+  return (
+    <div className="portfolio">
+      <div className="portfolio-summary">
+        <h2>Your Portfolio</h2>
+        <div className="summary-cards">
+          <div className="summary-card">
+            <h3>Total Value</h3>
+            <p className="summary-value">{totalValue.toFixed(2)} HBAR</p>
+          </div>
+          <div className="summary-card">
+            <h3>Performance</h3>
+            <p className="summary-value performance">{totalPerformance}</p>
+          </div>
+          <div className="summary-card">
+            <h3>Available Balance</h3>
+            <p className="summary-value">{balance.toFixed(4)} HBAR</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="holdings">
+        <h3>Your Investment Baskets</h3>
+        <div className="holdings-list">
+          {holdings.length > 0 ? (
+            holdings.map((holding) => (
+              <div 
+                key={holding.basketId} 
+                className="holding-card"
+                style={{ borderColor: holding.color }}
+              >
+                <div className="holding-header" style={{ backgroundColor: holding.color }}>
+                  <h4>{holding.basketId}</h4>
+                </div>
+                <div className="holding-details">
+                  <h4>{holding.name}</h4>
+                  <div className="holding-stats">
+                    <div>
+                      <p>Amount:</p>
+                      <p className="stat-value">{holding.amount.toFixed(2)} units</p>
+                    </div>
+                    <div>
+                      <p>Value:</p>
+                      <p className="stat-value">{holding.value.toFixed(2)} HBAR</p>
+                    </div>
+                    <div>
+                      <p>Performance:</p>
+                      <p className="stat-value performance">{holding.performance}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="no-holdings">You don't have any investments yet. Explore our investment baskets to get started!</p>
+          )}
+        </div>
+      </div>
+      
+      <div className="transaction-history">
+        <h3>Recent Transactions</h3>
+        <table className="transactions-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Basket</th>
+              <th>Amount</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>2025-03-28</td>
+              <td>Buy</td>
+              <td>TECH-SI</td>
+              <td>10.5 HBAR</td>
+              <td><span className="status completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td>2025-03-25</td>
+              <td>Buy</td>
+              <td>AGRI-SI</td>
+              <td>8.2 HBAR</td>
+              <td><span className="status completed">Completed</span></td>
+            </tr>
+            <tr>
+              <td>2025-03-20</td>
+              <td>Deposit</td>
+              <td>-</td>
+              <td>50 HBAR</td>
+              <td><span className="status completed">Completed</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export default Portfolio;
